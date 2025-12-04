@@ -4,16 +4,30 @@ from typing import Optional, Literal, List
 from pydantic import BaseModel, Field
 import httpx
 import os
+import logging
+import sys
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
-# Load environment variables
 load_dotenv()
+
+# Setup logging to stderr (so it shows in backend logs)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[MCP] %(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stderr)],
+)
+logger = logging.getLogger("mcp_server")
 
 mcp = FastMCP("Trading Strategy MCP")
 
 # API Configuration
 API_BASE_URL = "https://api.marketmaya.com/api"
 BEARER_TOKEN = os.getenv("BEARER_TOKEN", "")
+
+logger.info(f"MCP Server initialized. API_BASE_URL: {API_BASE_URL}")
+logger.info(f"BEARER_TOKEN configured: {'Yes' if BEARER_TOKEN else 'NO - MISSING!'}")
 
 
 def get_auth_headers() -> dict:
@@ -28,6 +42,7 @@ def get_auth_headers() -> dict:
 # ============================================================================
 # SCALPING STRATEGY TOOL
 # ============================================================================
+
 
 @mcp.tool()
 def create_scalping_strategy(
@@ -145,17 +160,17 @@ def create_scalping_strategy(
     Returns:
         API response with strategy ID and deployment status
     """
-    
+
     # Build mix_name based on segment
     if segment == "EQ":
         mix_name = f"{symbol} {segment} {exchange}"
     else:
         mix_name = f"{symbol} {segment} {contract} {expiry}"
-    
+
     # Build short and long descriptions
     short_desc = f"{side} {symbol} at every {averaging_points} points"
     long_desc = f"{side} {symbol} at every {averaging_points} points down side and book profit at {target_points} points."
-    
+
     # Create the strategy payload with ALL parameters
     payload = {
         "id": "",
@@ -219,34 +234,98 @@ def create_scalping_strategy(
         "effect_all_sub_strategies": False,
     }
 
+    logger.info(f"🚀 Creating strategy: {strategy_name} for {symbol}")
+    logger.info(f"   Exchange: {exchange}, Segment: {segment}, Side: {side}")
+    logger.info(
+        f"   Avg: {averaging_points} pts, Target: {target_points} pts, Max Steps: {max_steps}"
+    )
+
     # Make API call to create the strategy
     try:
+        logger.info(
+            f"📤 Calling API: {API_BASE_URL}/mainStrategy/createScalpingStrategy"
+        )
         with httpx.Client(timeout=30.0) as client:
             response = client.post(
                 f"{API_BASE_URL}/mainStrategy/createScalpingStrategy",
                 headers=get_auth_headers(),
                 json=payload,
             )
-            response.raise_for_status()
+
+            logger.info(f"📥 API Response Status: {response.status_code}")
+
+            # Check for API errors before raising
+            if response.status_code != 200:
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get(
+                        "message", error_data.get("error", response.text)
+                    )
+                except Exception:
+                    error_msg = response.text
+                logger.error(f"❌ API Error: {error_msg}")
+                return {
+                    "status": "error",
+                    "message": f"API returned error: {error_msg}",
+                }
+
             api_response = response.json()
-            
+            logger.info(f"📥 API Response: {api_response}")
+
+            # Handle list response (assume success if list is returned)
+            if isinstance(api_response, list):
+                logger.info("✅ API returned a list, assuming success.")
+                # Try to find an ID in the first element if available
+                strategy_id = "N/A"
+                if api_response and isinstance(api_response[0], dict):
+                    strategy_id = api_response[0].get("id", "N/A")
+                
+                return {
+                    "status": "success",
+                    "message": f"Strategy '{strategy_name}' created successfully!",
+                    "strategy_id": strategy_id,
+                    "details": api_response
+                }
+
+            # Check if response indicates an error
+            if api_response.get("error") or api_response.get("status") == "error":
+                error_msg = api_response.get(
+                    "message", api_response.get("error", "Unknown API error")
+                )
+                logger.error(f"❌ API returned error status: {error_msg}")
+                return {
+                    "status": "error",
+                    "message": error_msg,
+                }
+
+            logger.info(
+                f"✅ Strategy created successfully! ID: {api_response.get('id', 'N/A')}"
+            )
             return {
                 "status": "success",
                 "message": f"Strategy '{strategy_name}' created successfully!",
-                "payload": payload,
-                "response": api_response,
+                "strategy_id": api_response.get("id", ""),
             }
     except httpx.HTTPStatusError as e:
+        logger.error(f"❌ HTTP Error: {e}")
+        try:
+            error_data = e.response.json()
+            error_msg = error_data.get("message", error_data.get("error", str(e)))
+        except Exception:
+            error_msg = e.response.text
+        logger.error(f"❌ Error message: {error_msg}")
         return {
             "status": "error",
-            "message": f"API error: {e.response.status_code} - {e.response.text}",
-            "payload": payload,
+            "message": f"API error: {error_msg}",
         }
     except Exception as e:
+        logger.error(f"❌ Unexpected error: {e}")
+        import traceback
+
+        logger.error(f"❌ Traceback: {traceback.format_exc()}")
         return {
             "status": "error",
             "message": f"Failed to create strategy: {str(e)}",
-            "payload": payload,
         }
 
 
@@ -254,12 +333,13 @@ def create_scalping_strategy(
 # GET MY STRATEGIES TOOL
 # ============================================================================
 
+
 @mcp.tool()
 def get_my_strategies(
     skip: int = 0,
     take: int = 10,
     search: str = "",
-    symbols: List[str] = None,
+    symbols: Optional[List[str]] = None,
     trading_type: Literal["All", "INTRADAY", "POSITIONAL"] = "All",
     sort_by: Literal["newest", "oldest", "name"] = "newest",
 ) -> dict:
@@ -277,7 +357,7 @@ def get_my_strategies(
     Returns:
         List of strategies with their details
     """
-    
+
     # Build request payload
     payload = {
         "skip": skip,
@@ -286,11 +366,7 @@ def get_my_strategies(
         "symbols": symbols or [],
         "tradingType": trading_type,
         "strategyMasterIds": [],
-        "strategyMaster": {
-            "id": "",
-            "strategy_name": "All Plugins",
-            "selected": True
-        },
+        "strategyMaster": {"id": "", "strategy_name": "All Plugins", "selected": True},
         "AuthorIds": [],
         "sortBy": sort_by,
     }
@@ -305,23 +381,25 @@ def get_my_strategies(
             )
             response.raise_for_status()
             api_response = response.json()
-            
+
             # Extract relevant data
             strategies = []
             for strategy in api_response.get("data", []):
-                strategies.append({
-                    "id": strategy.get("id"),
-                    "sid": strategy.get("sid"),
-                    "name": strategy.get("strategy_name"),
-                    "plugin": strategy.get("plugin_name"),
-                    "symbol": strategy.get("main_symbol"),
-                    "trading_type": strategy.get("trading_type"),
-                    "required_margin": strategy.get("required_margin_format"),
-                    "is_deployed": strategy.get("is_deployed"),
-                    "created_on": strategy.get("created_on"),
-                    "type": strategy.get("type"),
-                })
-            
+                strategies.append(
+                    {
+                        "id": strategy.get("id"),
+                        "sid": strategy.get("sid"),
+                        "name": strategy.get("strategy_name"),
+                        "plugin": strategy.get("plugin_name"),
+                        "symbol": strategy.get("main_symbol"),
+                        "trading_type": strategy.get("trading_type"),
+                        "required_margin": strategy.get("required_margin_format"),
+                        "is_deployed": strategy.get("is_deployed"),
+                        "created_on": strategy.get("created_on"),
+                        "type": strategy.get("type"),
+                    }
+                )
+
             return {
                 "status": "success",
                 "total": api_response.get("total", 0),
@@ -338,6 +416,63 @@ def get_my_strategies(
             "status": "error",
             "message": f"Failed to fetch strategies: {str(e)}",
         }
+
+
+# ============================================================================
+# KNOWLEDGE BASE TOOL
+# ============================================================================
+
+
+@mcp.tool()
+def search_knowledge_base(query: str) -> str:
+    """
+    Search the MarketMaya knowledge base for relevant documentation and guides.
+    Use this tool when the user asks about how to use the platform, API documentation,
+    strategy parameters, or general help.
+
+    Args:
+        query: The search query (e.g., "how to create a scalping strategy", "API authentication")
+
+    Returns:
+        Relevant text chunks from the knowledge base.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    store_name = os.getenv("MMCOPILOT_STORE_NAME")
+
+    if not api_key:
+        return "Error: GEMINI_API_KEY not configured in MCP server."
+
+    if not store_name:
+        return "Error: Knowledge base not configured (MMCOPILOT_STORE_NAME missing)."
+
+    try:
+        client = genai.Client(api_key=api_key, vertexai=False)
+
+        model = "gemini-2.5-flash-lite"
+
+        # Configure the tool
+        file_search_tool = types.Tool(
+            file_search=types.FileSearch(file_search_store_names=[store_name], top_k=5)
+        )
+
+        # Ask the model to retrieve
+        response = client.models.generate_content(
+            model=model,
+            contents=f"Please search the knowledge base for: '{query}' and provide a detailed summary of the relevant information found. If you find code examples, include them.",
+            config=types.GenerateContentConfig(
+                tools=[file_search_tool],
+                temperature=0.1,
+            ),
+        )
+
+        if response.text:
+            return response.text
+        else:
+            return "No relevant information found in the knowledge base."
+
+    except Exception as e:
+        logger.error(f"Search error: {e}")
+        return f"Error searching knowledge base: {str(e)}"
 
 
 if __name__ == "__main__":
