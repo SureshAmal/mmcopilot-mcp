@@ -53,12 +53,13 @@ def create_scalping_strategy(
     contract: Literal["NEAR", "NEXT", "FAR"] = "NEAR",
     expiry: Literal["MONTHLY", "WEEKLY"] = "MONTHLY",
     averaging_points: int = 100,
+    avg_points: Optional[int] = None,  # Alias for averaging_points
     target_points: int = 100,
     max_steps: int = 50,
     quantity: int = 1,
     lot: int = 1,
     side: Literal["BUY", "SELL"] = "BUY",
-    is_intraday: bool = False,
+    is_intraday: bool = True,
     intraday_entry_time: str = "9:16",
     intraday_exit_time: str = "15:25",
     required_margin: int = 100000,
@@ -108,7 +109,7 @@ def create_scalping_strategy(
     Create and deploy a scalping strategy to MarketMaya.
 
     Args:
-        strategy_name: Name of the strategy (e.g., "RELIANCE Scalping")
+        strategy_name: Name of the strategy (e.g., "RELIANCE Scalping") if user did not provide then create appropriate name
         symbol: Trading symbol (e.g., RELIANCE, SILVER, NIFTY)
         exchange: Exchange - NSE, MCX, or BSE (default: NSE)
         segment: Market segment - EQ (Equity), FUT (Futures), OPT (Options) (default: EQ)
@@ -160,6 +161,10 @@ def create_scalping_strategy(
     Returns:
         API response with strategy ID and deployment status
     """
+
+    # Handle alias for averaging_points
+    if avg_points is not None:
+        averaging_points = avg_points
 
     # Build mix_name based on segment
     if segment == "EQ":
@@ -279,12 +284,12 @@ def create_scalping_strategy(
                 strategy_id = "N/A"
                 if api_response and isinstance(api_response[0], dict):
                     strategy_id = api_response[0].get("id", "N/A")
-                
+
                 return {
                     "status": "success",
                     "message": f"Strategy '{strategy_name}' created successfully!",
                     "strategy_id": strategy_id,
-                    "details": api_response
+                    "details": api_response,
                 }
 
             # Check if response indicates an error
@@ -473,6 +478,95 @@ def search_knowledge_base(query: str) -> str:
     except Exception as e:
         logger.error(f"Search error: {e}")
         return f"Error searching knowledge base: {str(e)}"
+
+
+# ============================================================================
+# GET POINT BALANCE TOOL
+# ============================================================================
+
+
+@mcp.tool()
+def get_point_balance() -> dict:
+    """
+    Get the user's current point balance from MarketMaya.
+
+    Returns:
+        Dictionary containing point_balance, hold_balance, and total balance
+    """
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                f"{API_BASE_URL}/client/v2/getPointBalance",
+                headers=get_auth_headers(),
+                json={},
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"❌ HTTP Error: {e}")
+        return {
+            "status": "error",
+            "message": f"API error: {e.response.status_code} - {e.response.text}",
+        }
+    except Exception as e:
+        logger.error(f"❌ Unexpected error: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to fetch balance: {str(e)}",
+        }
+
+
+# ============================================================================
+# GET BACKTEST OPTIONS TOOL
+# ============================================================================
+
+
+@mcp.tool()
+def get_backtest_options(strategy_id: str) -> dict:
+    """
+    Get backtest options for a specific strategy.
+
+    Args:
+        strategy_id: The encrypted ID of the strategy (e.g., "mdaB0$Eix..."). NOT the simple numeric ID.
+
+    Returns:
+        Dictionary containing available backtest options.
+    """
+    logger.info(f"Fetching backtest options for strategy_id: {strategy_id}")
+    
+    # Ensure ID is a string and strip whitespace
+    clean_id = str(strategy_id).strip()
+    payload = {"id": clean_id}
+    
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            # Use json parameter which httpx handles correctly (sets Content-Type and Content-Length)
+            # But we'll log what we're sending
+            logger.info(f"Sending payload: {payload}")
+            
+            response = client.post(
+                f"{API_BASE_URL}/subscription/getBacktestOptions",
+                headers=get_auth_headers(),
+                json=payload,
+            )
+            
+            if response.status_code != 200:
+                logger.error(f"❌ API Error {response.status_code}: {response.text}")
+            
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPStatusError as e:
+        logger.error(f"❌ HTTP Error: {e}")
+        return {
+            "status": "error",
+            "message": f"API error: {e.response.status_code} - {e.response.text}",
+        }
+    except Exception as e:
+        logger.error(f"❌ Unexpected error: {e}")
+        return {
+            "status": "error",
+            "message": f"Failed to fetch backtest options: {str(e)}",
+        }
 
 
 if __name__ == "__main__":
