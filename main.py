@@ -1,15 +1,14 @@
-# server.py
-import logging
-import os
-import sys
-from typing import List, Literal, Optional
-
-import httpx
-from dotenv import load_dotenv
 from fastmcp import FastMCP
+from typing import Optional, Literal, List
+from pydantic import BaseModel, Field
+import httpx
+import os
+import logging
+import sys
+import json
+from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -27,6 +26,8 @@ mcp = FastMCP("Trading Strategy MCP")
 API_BASE_URL = "https://api.marketmaya.com/api"
 BEARER_TOKEN = os.getenv("BEARER_TOKEN", "")
 
+# Optional source field used by some APIs
+SOURCE = os.getenv("SOURCE", "MCP")
 logger.info(f"MCP Server initialized. API_BASE_URL: {API_BASE_URL}")
 logger.info(f"BEARER_TOKEN configured: {'Yes' if BEARER_TOKEN else 'NO - MISSING!'}")
 
@@ -601,12 +602,12 @@ def modify_strategy(
     no_of_trail_sl: Optional[int] = None,
 ) -> dict:
     """
-    Modify an existing scalping strategy on MarketMaya.
+     Modify an existing scalping strategy on MarketMaya.
 
     This tool first checks if the strategy can be edited, then updates it with the new parameters.
 
     Args:
-        strategy_id: The encrypted ID of the strategy to modify (e.g., "mdaB0$Eix..."). Get this from get_my_strategies don't ask user for ID.
+        strategy_id: The encrypted ID of the strategy to modify (e.g., "mdaB0$Eix..."). Get this from get_my_strategies.
         strategy_name: New name for the strategy (optional)
         averaging_points: New points interval for averaging (optional)
         target_points: New target profit in points (optional)
@@ -633,278 +634,170 @@ def modify_strategy(
         API response with update status
     """
     clean_id = str(strategy_id).strip()
-    logger.info(f"🔄 Modifying strategy: {clean_id}")
+    logger.info("Modifying strategy (simple): %s", clean_id)
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            # Step 1: Check if strategy can be edited
-            logger.info(f"📤 Checking if strategy can be edited...")
-            can_edit_response = client.post(
+            # canEdit check
+            logger.info(
+                "Calling API: mainStrategy/canEdit with payload: %s", {"id": clean_id}
+            )
+            print("REQUEST -> mainStrategy/canEdit:\n", {"id": clean_id})
+            can_edit_resp = client.post(
                 f"{API_BASE_URL}/mainStrategy/canEdit",
                 headers=get_auth_headers(),
                 json={"id": clean_id},
             )
+            try:
+                can_edit_json = can_edit_resp.json()
+            except Exception:
+                can_edit_json = {"text": can_edit_resp.text}
 
-            if can_edit_response.status_code != 200:
-                logger.error(f"❌ canEdit API Error: {can_edit_response.text}")
+            logger.info("canEdit response status: %s", can_edit_resp.status_code)
+            logger.info("canEdit response body: %s", can_edit_json)
+            print("RESPONSE <- mainStrategy/canEdit:\n", can_edit_json)
+
+            if can_edit_resp.status_code != 200:
+                return {"status": "error", "message": "Cannot check edit permission"}
+            if isinstance(can_edit_json, dict) and (
+                can_edit_json.get("error") or can_edit_json.get("canEdit") is False
+            ):
                 return {
                     "status": "error",
-                    "message": f"Cannot check edit permission: {can_edit_response.text}",
+                    "message": can_edit_json.get(
+                        "message", "Strategy cannot be edited"
+                    ),
                 }
 
-            can_edit_data = can_edit_response.json()
-            logger.info(f"📥 canEdit Response: {can_edit_data}")
-
-            # Check if editing is allowed
-            if isinstance(can_edit_data, dict):
-                if can_edit_data.get("error") or can_edit_data.get("canEdit") == False:
-                    error_msg = can_edit_data.get(
-                        "message",
-                        "Strategy cannot be edited. It may be running or deployed.",
-                    )
-                    return {
-                        "status": "error",
-                        "message": error_msg,
-                    }
-
-            # Step 2: Get current strategy details to preserve unchanged fields
-            logger.info(f"📤 Fetching current strategy details...")
-            # We need to get strategy details - use search to find it
-            strategies_response = client.post(
-                f"{API_BASE_URL}/mainStrategy/getMyStrategies",
-                headers=get_auth_headers(),
-                json={
-                    "skip": 0,
-                    "take": 100,
-                    "search": "",
-                    "symbols": [],
-                    "tradingType": "All",
-                },
-            )
-
-            if strategies_response.status_code != 200:
-                logger.error(f"❌ getMyStrategies Error: {strategies_response.text}")
-                return {
-                    "status": "error",
-                    "message": "Failed to fetch current strategy details",
-                }
-
-            strategies_data = strategies_response.json()
-            current_strategy = None
-
-            # Find the strategy by ID
-            if isinstance(strategies_data, dict) and "strategies" in strategies_data:
-                for s in strategies_data["strategies"]:
-                    if s.get("id") == clean_id:
-                        current_strategy = s
-                        break
-
-            if not current_strategy:
-                return {
-                    "status": "error",
-                    "message": f"Strategy with ID '{clean_id}' not found",
-                }
-
-            logger.info(
-                f"📥 Found strategy: {current_strategy.get('strategy_name', 'Unknown')}"
-            )
-
-            # Step 3: Build updated payload - merge current with new values
-            # Start with current strategy data and update only provided fields
-            payload = {
-                "id": clean_id,
-                "strategy_name": strategy_name
-                if strategy_name is not None
-                else current_strategy.get("strategy_name", ""),
-                "short_description": current_strategy.get("short_description", ""),
-                "long_description": current_strategy.get("long_description", ""),
-                "strategy_id": current_strategy.get(
-                    "strategy_id", "YioJhK5IqBULe8fPLMnXaAaC0$aC0$"
-                ),
-                "mix_name": current_strategy.get("mix_name", ""),
-                "main_exchange": current_strategy.get("main_exchange", "NSE"),
-                "main_segment": current_strategy.get("main_segment", "EQ"),
-                "main_symbol": current_strategy.get("main_symbol", ""),
-                "main_contract": current_strategy.get("main_contract", "NEAR"),
-                "main_expiry": current_strategy.get("main_expiry", "MONTHLY"),
-                "product_type": product_type
-                if product_type is not None
-                else current_strategy.get("product_type", "NRML"),
-                "exit_order_product_type": current_strategy.get(
-                    "exit_order_product_type", ""
-                ),
-                "qty_type": current_strategy.get("qty_type", "Qty"),
-                "qty": quantity
-                if quantity is not None
-                else current_strategy.get("qty", 1),
-                "lot": lot if lot is not None else current_strategy.get("lot", 1),
-                "atm": current_strategy.get("atm", 0),
-                "strike_price": current_strategy.get("strike_price", 0),
-                "option_type": current_strategy.get("option_type", ""),
-                "intraday_entry_time": intraday_entry_time
-                if intraday_entry_time is not None
-                else current_strategy.get("intraday_entry_time", "9:16"),
-                "intraday_exit_time": intraday_exit_time
-                if intraday_exit_time is not None
-                else current_strategy.get("intraday_exit_time", "15:25"),
-                "is_intraday": is_intraday
-                if is_intraday is not None
-                else current_strategy.get("is_intraday", True),
-                "jobbing_side": side
-                if side is not None
-                else current_strategy.get("jobbing_side", "BUY"),
-                "jobbing_start_price": jobbing_start_price
-                if jobbing_start_price is not None
-                else current_strategy.get("jobbing_start_price", 0),
-                "jobbing_end_price": jobbing_end_price
-                if jobbing_end_price is not None
-                else current_strategy.get("jobbing_end_price", 0),
-                "average_by": current_strategy.get("average_by", "Point"),
-                "average_value": averaging_points
-                if averaging_points is not None
-                else current_strategy.get("average_value", 100),
-                "target_by": current_strategy.get("target_by", "Point"),
-                "target": current_strategy.get("target", 0),
-                "intraday_target": target_points
-                if target_points is not None
-                else current_strategy.get("intraday_target", 100),
-                "maximum_steps": max_steps
-                if max_steps is not None
-                else current_strategy.get("maximum_steps", 50),
-                "maximum_target_steps": current_strategy.get("maximum_target_steps", 0),
-                "sqroff_on_maximum_steps": current_strategy.get(
-                    "sqroff_on_maximum_steps", False
-                ),
-                "calculate_qty_on_market_jump": current_strategy.get(
-                    "calculate_qty_on_market_jump", False
-                ),
-                "allow_update_parameters": current_strategy.get(
-                    "allow_update_parameters", True
-                ),
-                "order_type": order_type
-                if order_type is not None
-                else current_strategy.get("order_type", "Market Order"),
-                "no_of_limit_order_retry": current_strategy.get(
-                    "no_of_limit_order_retry", 0
-                ),
-                "retry_at_every_seconds": current_strategy.get(
-                    "retry_at_every_seconds", 0
-                ),
-                "market_order_after_retry": current_strategy.get(
-                    "market_order_after_retry", False
-                ),
-                "reset_cycle_by_master_tpsl": current_strategy.get(
-                    "reset_cycle_by_master_tpsl", False
-                ),
-                "rollover_before_days": current_strategy.get("rollover_before_days", 0),
-                "is_auto_rollover": current_strategy.get("is_auto_rollover", False),
-                "is_add_hedge_leg": current_strategy.get("is_add_hedge_leg", False),
-                "rollover_time": current_strategy.get("rollover_time", "0:0"),
-                "master_tp_money": master_tp_money
-                if master_tp_money is not None
-                else current_strategy.get("master_tp_money", 0),
-                "master_sl_money": master_sl_money
-                if master_sl_money is not None
-                else current_strategy.get("master_sl_money", 0),
-                "reset_cycle_on_positive_mtm": current_strategy.get(
-                    "reset_cycle_on_positive_mtm", 0
-                ),
-                "required_margin": required_margin
-                if required_margin is not None
-                else current_strategy.get("required_margin", 100000),
-                "is_trail_sl": is_trail_sl
-                if is_trail_sl is not None
-                else current_strategy.get("is_trail_sl", False),
-                "profit_move": profit_move
-                if profit_move is not None
-                else current_strategy.get("profit_move", 0),
-                "sl_move": sl_move
-                if sl_move is not None
-                else current_strategy.get("sl_move", 0),
-                "no_of_trail_sl": no_of_trail_sl
-                if no_of_trail_sl is not None
-                else current_strategy.get("no_of_trail_sl", 0),
-                "scalping_opening_qty": current_strategy.get("scalping_opening_qty", 0),
-                "increase_qty_on_avg": current_strategy.get(
-                    "increase_qty_on_avg", False
-                ),
-                "increase_qty": current_strategy.get("increase_qty", 0),
-                "increase_qty_type": current_strategy.get("increase_qty_type", "Qty"),
-                "rebacktest": False,
-                "sub": current_strategy.get("sub", []),
-                "effect_all_sub_strategies": False,
+            params = {
+                "strategy_id": strategy_id,
+                "strategy_name": strategy_name,
+                "averaging_points": averaging_points,
+                "target_points": target_points,
+                "max_steps": max_steps,
+                "quantity": quantity,
+                "lot": lot,
+                "side": side,
+                "is_intraday": is_intraday,
+                "intraday_entry_time": intraday_entry_time,
+                "intraday_exit_time": intraday_exit_time,
+                "required_margin": required_margin,
+                "product_type": product_type,
+                "order_type": order_type,
+                "jobbing_start_price": jobbing_start_price,
+                "jobbing_end_price": jobbing_end_price,
+                "master_tp_money": master_tp_money,
+                "master_sl_money": master_sl_money,
+                "is_trail_sl": is_trail_sl,
+                "profit_move": profit_move,
+                "sl_move": sl_move,
+                "no_of_trail_sl": no_of_trail_sl,
             }
+            try:
+                logger.info(
+                    "modify_strategy called with params: %s",
+                    json.dumps(params, default=str),
+                )
+            except Exception:
+                logger.info("modify_strategy called with params: %s", params)
+            # also print to stdout for immediate visibility
+            print("modify_strategy incoming params:\n", params)
 
-            # Step 4: Update the strategy
-            logger.info(f"📤 Updating strategy with new parameters...")
-            update_response = client.post(
-                f"{API_BASE_URL}/mainStrategy/createScalpingStrategy",
-                headers=get_auth_headers(),
-                json=payload,
-            )
+            # Fetch the full current scalping record and merge user-provided fields
+            try:
+                get_payload = {"id": clean_id}
+                if SOURCE:
+                    get_payload["source"] = SOURCE
 
-            logger.info(f"📥 Update Response Status: {update_response.status_code}")
+                headers = get_auth_headers()
+                headers_preview = dict(headers)
+                auth = headers_preview.get("Authorization")
+                if isinstance(auth, str) and auth.startswith("Bearer "):
+                    token_part = auth.split(" ", 1)[1]
+                    headers_preview["Authorization"] = "Bearer " + (token_part[:8] + "..." + token_part[-8:] if len(token_part) > 16 else token_part)
 
-            if update_response.status_code != 200:
+                logger.info("Fetching current strategy via getScalpingRecord: %s", get_payload)
+                logger.info("Request headers (redacted): %s", headers_preview)
+                get_resp = client.post(f"{API_BASE_URL}/mainStrategy/getScalpingRecord", headers=headers, json=get_payload)
                 try:
-                    error_data = update_response.json()
-                    error_msg = error_data.get(
-                        "message", error_data.get("error", update_response.text)
-                    )
+                    current = get_resp.json()
                 except Exception:
-                    error_msg = update_response.text
-                logger.error(f"❌ Update Error: {error_msg}")
-                return {
-                    "status": "error",
-                    "message": f"Failed to update strategy: {error_msg}",
-                }
+                    current = {"text": get_resp.text}
 
-            update_data = update_response.json()
-            logger.info(f"📥 Update Response: {update_data}")
+                logger.info("getScalpingRecord status: %s", get_resp.status_code)
+                logger.info("getScalpingRecord body: %s", current)
 
-            # Build summary of changes
-            changes = []
-            if strategy_name is not None:
-                changes.append(f"Name: {strategy_name}")
-            if averaging_points is not None:
-                changes.append(f"Averaging Points: {averaging_points}")
-            if target_points is not None:
-                changes.append(f"Target Points: {target_points}")
-            if max_steps is not None:
-                changes.append(f"Max Steps: {max_steps}")
-            if quantity is not None:
-                changes.append(f"Quantity: {quantity}")
-            if side is not None:
-                changes.append(f"Side: {side}")
-            if is_intraday is not None:
-                changes.append(f"Intraday: {is_intraday}")
-            if master_tp_money is not None:
-                changes.append(f"Master TP: {master_tp_money}")
-            if master_sl_money is not None:
-                changes.append(f"Master SL: {master_sl_money}")
+                if get_resp.status_code != 200 or not isinstance(current, dict):
+                    logger.warning("Could not fetch full strategy record; falling back to minimal update payload")
+                    current = {"id": clean_id}
 
-            return {
-                "status": "success",
-                "message": f"Strategy updated successfully!",
-                "changes": changes if changes else ["No specific changes provided"],
-                "strategy_name": payload["strategy_name"],
-            }
+            except Exception as e:
+                logger.exception("Error fetching current strategy record: %s", e)
+                current = {"id": clean_id}
+
+            # Helper to set field only when user provided a non-None value
+            def set_if(provided, key):
+                if provided is not None:
+                    current[key] = provided
+
+            set_if(strategy_name, "strategy_name")
+            set_if(averaging_points, "average_value")
+            set_if(target_points, "intraday_target")
+            set_if(max_steps, "maximum_steps")
+            set_if(quantity, "qty")
+            set_if(lot, "lot")
+            set_if(side, "jobbing_side")
+            set_if(is_intraday, "is_intraday")
+            set_if(intraday_entry_time, "intraday_entry_time")
+            set_if(intraday_exit_time, "intraday_exit_time")
+            set_if(required_margin, "required_margin")
+            set_if(product_type, "product_type")
+            set_if(order_type, "order_type")
+            set_if(jobbing_start_price, "jobbing_start_price")
+            set_if(jobbing_end_price, "jobbing_end_price")
+            set_if(master_tp_money, "master_tp_money")
+            set_if(master_sl_money, "master_sl_money")
+            set_if(is_trail_sl, "is_trail_sl")
+            set_if(profit_move, "profit_move")
+            set_if(sl_move, "sl_move")
+            set_if(no_of_trail_sl, "no_of_trail_sl")
+
+            current["id"] = clean_id
+
+            # Send merged payload to update endpoint
+            logger.info("Calling API: mainStrategy/createScalpingStrategy with merged payload keys: %s", list(current.keys()))
+            print("REQUEST -> mainStrategy/createScalpingStrategy:\n", current)
+            upd_resp = client.post(f"{API_BASE_URL}/mainStrategy/createScalpingStrategy", headers=get_auth_headers(), json=current, timeout=30.0)
+            try:
+                upd_json = upd_resp.json()
+            except Exception:
+                upd_json = {"text": upd_resp.text}
+
+            logger.info("createScalpingStrategy response status: %s", upd_resp.status_code)
+            logger.info("createScalpingStrategy response body: %s", upd_json)
+            print("RESPONSE <- mainStrategy/createScalpingStrategy:\n", upd_json)
+
+            if upd_resp.status_code != 200:
+                try:
+                    err = upd_json if isinstance(upd_json, dict) else {"text": upd_json}
+                    return {"status": "error", "message": err.get("message", upd_resp.text) if isinstance(err, dict) else str(err), "response": upd_json}
+                except Exception:
+                    return {"status": "error", "message": upd_resp.text, "response": upd_json}
+
+            return {"status": "success", "message": "Strategy update called", "response": upd_json}
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"❌ HTTP Error: {e}")
+        logger.error("HTTP Error while modifying strategy: %s", e)
         return {
             "status": "error",
             "message": f"API error: {e.response.status_code} - {e.response.text}",
         }
     except Exception as e:
-        logger.error(f"❌ Unexpected error: {e}")
+        logger.error("Unexpected error while modifying strategy: %s", e)
         import traceback
 
-        logger.error(f"❌ Traceback: {traceback.format_exc()}")
-        return {
-            "status": "error",
-            "message": f"Failed to modify strategy: {str(e)}",
-        }
+        logger.error("Traceback: %s", traceback.format_exc())
+        return {"status": "error", "message": f"Failed to modify strategy: {str(e)}"}
 
 
 if __name__ == "__main__":
