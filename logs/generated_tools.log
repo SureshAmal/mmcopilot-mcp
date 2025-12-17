@@ -1,0 +1,912 @@
+
+
+# ================= create_scalping_strategy =================
+
+@mcp.tool(name="create_scalping_strategy", description="scalping strategy creation tool")
+def create_scalping_strategy(id: Optional[str] = '', strategy_name: str = '', short_description: Optional[str] = '', long_description: Optional[str] = None, strategy_id: Optional[str] = 'YioJhK5IqBULe8fPLMnXaAaC0$aC0$', mix_name: Optional[str] = '', main_exchange: Literal['NSE', 'NFO', 'BFO', 'BSE', 'MCX', 'CDS'] = 'NFO', main_segment: Literal['FUT', 'OPT', 'EQ'] = 'FUT', main_symbol: str = '', main_contract: Optional[Literal['NEAR', 'NEXT', 'FAR']] = 'NEAR', main_expiry: Optional[Literal['WEEKLY', 'MONTHLY']] = 'MONTHLY', product_type: Literal['MIS', 'NRML', 'CNC', 'MTF'] = 'MIS', exit_order_product_type: Optional[str] = '', qty_type: Literal['Qty', 'Lot'] = 'Lot', qty: int = 1, lot: Optional[int] = 1, atm: Optional[float] = 0, strike_price: Optional[float] = 0, option_type: Optional[Literal['CALL', 'PUT']] = 'CALL', intraday_entry_time: Optional[str] = '09:15', intraday_exit_time: Optional[str] = '15:15', is_intraday: bool = True, jobbing_side: Literal['BUY', 'SELL'] = 'BUY', jobbing_start_price: Optional[float] = 0, jobbing_end_price: Optional[float] = 0, average_by: Optional[Literal['Point', 'Percentage']] = 'Point', average_value: Optional[float] = 100, target_by: Optional[Literal['Point', 'Percentage']] = 'Point', target: Optional[float] = 100, intraday_target: Optional[float] = 0, maximum_steps: Optional[int] = 0, maximum_target_steps: Optional[int] = 0, sqroff_on_maximum_steps: Optional[bool] = False, calculate_qty_on_market_jump: Optional[bool] = False, allow_update_parameters: Optional[bool] = False, order_type: Literal['Market Order', 'Limit Order'] = 'Market Order', no_of_limit_order_retry: Optional[int] = 0, retry_at_every_seconds: Optional[int] = 0, market_order_after_retry: Optional[bool] = False, reset_cycle_by_master_tpsl: Optional[bool] = False, rollover_before_days: Optional[int] = 0, is_auto_rollover: Optional[bool] = False, is_add_hedge_leg: Optional[bool] = False, rollover_time: Optional[str] = '15:15', master_tp_money: Optional[float] = 0, master_sl_money: Optional[float] = 0, reset_cycle_on_positive_mtm: Optional[int] = 0, required_margin: Optional[float] = 1, is_trail_sl: Optional[bool] = False, profit_move: Optional[float] = 0, sl_move: Optional[float] = 0, no_of_trail_sl: Optional[int] = 0, scalping_opening_qty: Optional[int] = 0, increase_qty_on_avg: Optional[bool] = False, increase_qty: Optional[int] = 0, increase_qty_type: Optional[str] = None, rebacktest: Optional[bool] = False, sub: Optional[list] = [], effect_all_sub_strategies: Optional[bool] = False) -> str:
+    '''
+    scalping strategy creation tool
+    
+    Args:
+    id: Unique ID of the strategy
+    strategy_name: Name of the strategy
+    short_description: Short summary for UI
+    long_description: Detailed description
+    strategy_id: Internal strategy ID
+    mix_name: Name of the mix
+    main_exchange: Exchange for execution
+    main_segment: Trading segment
+    main_symbol: Trading symbol
+    main_contract: Contract selection
+    main_expiry: Expiry cycle
+    product_type: Broker product type
+    exit_order_product_type: Product type for exit orders
+    qty_type: Quantity calculation type
+    qty: Base quantity
+    lot: Lot size if applicable
+    atm: ATM value for options
+    strike_price: Strike price for option
+    option_type: Option type
+    intraday_entry_time: Intraday entry time
+    intraday_exit_time: Intraday exit time
+    is_intraday: Whether the strategy is intraday
+    jobbing_side: Jobbing direction
+    jobbing_start_price: Price to start jobbing
+    jobbing_end_price: Price to stop averaging
+    average_by: Averaging method
+    average_value: Distance between averaging steps
+    target_by: Target calculation method
+    target: Per-step target
+    intraday_target: Target for intraday
+    maximum_steps: Maximum averaging steps
+    maximum_target_steps: Max positive-side steps
+    sqroff_on_maximum_steps: Square off on max steps
+    calculate_qty_on_market_jump: Handle market jump
+    allow_update_parameters: Allow updating parameters
+    order_type: Order execution type
+    no_of_limit_order_retry: Number of retry attempts for limit orders
+    retry_at_every_seconds: Retry interval in seconds
+    market_order_after_retry: Use market order after retry
+    reset_cycle_by_master_tpsl: Reset cycle on master TP/SL
+    rollover_before_days: Days before expiry to rollover
+    is_auto_rollover: Enable auto rollover
+    is_add_hedge_leg: Add hedge leg
+    rollover_time: Rollover execution time
+    master_tp_money: Master TP money
+    master_sl_money: Master SL money
+    reset_cycle_on_positive_mtm: Reset cycle after positive MTM
+    required_margin: Estimated margin required
+    is_trail_sl: Enable trailing SL
+    profit_move: Profit move for trailing SL
+    sl_move: SL move for trailing SL
+    no_of_trail_sl: Number of trailing SL
+    scalping_opening_qty: Opening quantity for scalping
+    increase_qty_on_avg: Increase quantity on averaging
+    increase_qty: Quantity increment
+    increase_qty_type: Type of quantity increment
+    rebacktest: Re-run backtest
+    sub: Sub-strategies array
+    effect_all_sub_strategies: Apply to all sub-strategies
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = "https://api.marketmaya.com/api/mainStrategy/createScalpingStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing create_scalping_strategy: {response.text}"
+    except Exception as e:
+        return f"Error executing create_scalping_strategy: {str(e)}"
+
+
+# ================= get_strategies_list =================
+
+@mcp.tool(name="get_strategies_list", description="Fetch strategies/plugins with filters, pagination, and sorting")
+def get_strategies_list(skip: Optional[int] = 0, take: Optional[int] = 10, search: Optional[str] = '', symbols: Optional[list] = [], tradingType: Optional[Literal['All', 'Intraday', 'Positional']] = 'All', strategyMasterIds: Optional[list] = [], strategyMaster: Optional[dict] = {'id': '', 'strategy_name': 'All Plugins', 'selected': True}, AuthorIds: Optional[list] = [], sortBy: Optional[Literal['newest', 'oldest', 'popular']] = 'newest') -> str:
+    '''
+    Fetch strategies/plugins with filters, pagination, and sorting
+    
+    Args:
+    skip: Number of records to skip (pagination)
+    take: Number of records to fetch
+    search: Search keyword
+    symbols: Filter by trading symbols
+    tradingType: Trading type filter
+    strategyMasterIds: Selected strategy master IDs
+    strategyMaster: Strategy master filter object
+    AuthorIds: Filter by author IDs
+    sortBy: Sorting order
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/V3/mainStrategy/getClientMyStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_strategies_list: {response.text}"
+    except Exception as e:
+        return f"Error executing get_strategies_list: {str(e)}"
+
+
+# ================= get_point_balance =================
+
+@mcp.tool(name="get_point_balance", description="Fetch client point balance")
+def get_point_balance() -> str:
+    '''
+    Fetch client point balance
+    
+    Args:
+
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/client/v2/getPointBalance"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_point_balance: {response.text}"
+    except Exception as e:
+        return f"Error executing get_point_balance: {str(e)}"
+
+
+# ================= create_scalping_strategy =================
+
+@mcp.tool(name="create_scalping_strategy", description="scalping strategy creation tool")
+def create_scalping_strategy(id: Optional[str] = '', strategy_name: str = '', short_description: Optional[str] = '', long_description: Optional[str] = None, strategy_id: Optional[str] = 'YioJhK5IqBULe8fPLMnXaAaC0$aC0$', mix_name: Optional[str] = '', main_exchange: Literal['NSE', 'NFO', 'BFO', 'BSE', 'MCX', 'CDS'] = 'NFO', main_segment: Literal['FUT', 'OPT', 'EQ'] = 'FUT', main_symbol: str = '', main_contract: Optional[Literal['NEAR', 'NEXT', 'FAR']] = 'NEAR', main_expiry: Optional[Literal['WEEKLY', 'MONTHLY']] = 'MONTHLY', product_type: Literal['MIS', 'NRML', 'CNC', 'MTF'] = 'MIS', exit_order_product_type: Optional[str] = '', qty_type: Literal['Qty', 'Lot'] = 'Lot', qty: int = 1, lot: Optional[int] = 1, atm: Optional[float] = 0, strike_price: Optional[float] = 0, option_type: Optional[Literal['CALL', 'PUT']] = 'CALL', intraday_entry_time: Optional[str] = '09:15', intraday_exit_time: Optional[str] = '15:15', is_intraday: bool = True, jobbing_side: Literal['BUY', 'SELL'] = 'BUY', jobbing_start_price: Optional[float] = 0, jobbing_end_price: Optional[float] = 0, average_by: Optional[Literal['Point', 'Percentage']] = 'Point', average_value: Optional[float] = 100, target_by: Optional[Literal['Point', 'Percentage']] = 'Point', target: Optional[float] = 100, intraday_target: Optional[float] = 0, maximum_steps: Optional[int] = 0, maximum_target_steps: Optional[int] = 0, sqroff_on_maximum_steps: Optional[bool] = False, calculate_qty_on_market_jump: Optional[bool] = False, allow_update_parameters: Optional[bool] = False, order_type: Literal['Market Order', 'Limit Order'] = 'Market Order', no_of_limit_order_retry: Optional[int] = 0, retry_at_every_seconds: Optional[int] = 0, market_order_after_retry: Optional[bool] = False, reset_cycle_by_master_tpsl: Optional[bool] = False, rollover_before_days: Optional[int] = 0, is_auto_rollover: Optional[bool] = False, is_add_hedge_leg: Optional[bool] = False, rollover_time: Optional[str] = '15:15', master_tp_money: Optional[float] = 0, master_sl_money: Optional[float] = 0, reset_cycle_on_positive_mtm: Optional[int] = 0, required_margin: Optional[float] = 1, is_trail_sl: Optional[bool] = False, profit_move: Optional[float] = 0, sl_move: Optional[float] = 0, no_of_trail_sl: Optional[int] = 0, scalping_opening_qty: Optional[int] = 0, increase_qty_on_avg: Optional[bool] = False, increase_qty: Optional[int] = 0, increase_qty_type: Optional[str] = None, rebacktest: Optional[bool] = False, sub: Optional[list] = [], effect_all_sub_strategies: Optional[bool] = False) -> str:
+    '''
+    scalping strategy creation tool
+    
+    Args:
+    id: Unique ID of the strategy
+    strategy_name: Name of the strategy
+    short_description: Short summary for UI
+    long_description: Detailed description
+    strategy_id: Internal strategy ID
+    mix_name: Name of the mix
+    main_exchange: Exchange for execution
+    main_segment: Trading segment
+    main_symbol: Trading symbol
+    main_contract: Contract selection
+    main_expiry: Expiry cycle
+    product_type: Broker product type
+    exit_order_product_type: Product type for exit orders
+    qty_type: Quantity calculation type
+    qty: Base quantity
+    lot: Lot size if applicable
+    atm: ATM value for options
+    strike_price: Strike price for option
+    option_type: Option type
+    intraday_entry_time: Intraday entry time
+    intraday_exit_time: Intraday exit time
+    is_intraday: Whether the strategy is intraday
+    jobbing_side: Jobbing direction
+    jobbing_start_price: Price to start jobbing
+    jobbing_end_price: Price to stop averaging
+    average_by: Averaging method
+    average_value: Distance between averaging steps
+    target_by: Target calculation method
+    target: Per-step target
+    intraday_target: Target for intraday
+    maximum_steps: Maximum averaging steps
+    maximum_target_steps: Max positive-side steps
+    sqroff_on_maximum_steps: Square off on max steps
+    calculate_qty_on_market_jump: Handle market jump
+    allow_update_parameters: Allow updating parameters
+    order_type: Order execution type
+    no_of_limit_order_retry: Number of retry attempts for limit orders
+    retry_at_every_seconds: Retry interval in seconds
+    market_order_after_retry: Use market order after retry
+    reset_cycle_by_master_tpsl: Reset cycle on master TP/SL
+    rollover_before_days: Days before expiry to rollover
+    is_auto_rollover: Enable auto rollover
+    is_add_hedge_leg: Add hedge leg
+    rollover_time: Rollover execution time
+    master_tp_money: Master TP money
+    master_sl_money: Master SL money
+    reset_cycle_on_positive_mtm: Reset cycle after positive MTM
+    required_margin: Estimated margin required
+    is_trail_sl: Enable trailing SL
+    profit_move: Profit move for trailing SL
+    sl_move: SL move for trailing SL
+    no_of_trail_sl: Number of trailing SL
+    scalping_opening_qty: Opening quantity for scalping
+    increase_qty_on_avg: Increase quantity on averaging
+    increase_qty: Quantity increment
+    increase_qty_type: Type of quantity increment
+    rebacktest: Re-run backtest
+    sub: Sub-strategies array
+    effect_all_sub_strategies: Apply to all sub-strategies
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = "https://api.marketmaya.com/api/mainStrategy/createScalpingStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing create_scalping_strategy: {response.text}"
+    except Exception as e:
+        return f"Error executing create_scalping_strategy: {str(e)}"
+
+
+# ================= get_strategies_list =================
+
+@mcp.tool(name="get_strategies_list", description="Fetch strategies/plugins with filters, pagination, and sorting")
+def get_strategies_list(skip: Optional[int] = 0, take: Optional[int] = 10, search: Optional[str] = '', symbols: Optional[list] = [], tradingType: Optional[Literal['All', 'Intraday', 'Positional']] = 'All', strategyMasterIds: Optional[list] = [], strategyMaster: Optional[dict] = {'id': '', 'strategy_name': 'All Plugins', 'selected': True}, AuthorIds: Optional[list] = [], sortBy: Optional[Literal['newest', 'oldest', 'popular']] = 'newest') -> str:
+    '''
+    Fetch strategies/plugins with filters, pagination, and sorting
+    
+    Args:
+    skip: Number of records to skip (pagination)
+    take: Number of records to fetch
+    search: Search keyword
+    symbols: Filter by trading symbols
+    tradingType: Trading type filter
+    strategyMasterIds: Selected strategy master IDs
+    strategyMaster: Strategy master filter object
+    AuthorIds: Filter by author IDs
+    sortBy: Sorting order
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/V3/mainStrategy/getClientMyStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_strategies_list: {response.text}"
+    except Exception as e:
+        return f"Error executing get_strategies_list: {str(e)}"
+
+
+# ================= get_point_balance =================
+
+@mcp.tool(name="get_point_balance", description="Fetch client point balance")
+def get_point_balance() -> str:
+    '''
+    Fetch client point balance
+    
+    Args:
+
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/client/v2/getPointBalance"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_point_balance: {response.text}"
+    except Exception as e:
+        return f"Error executing get_point_balance: {str(e)}"
+
+
+# ================= create_scalping_strategy =================
+
+@mcp.tool(name="create_scalping_strategy", description="scalping strategy creation tool")
+def create_scalping_strategy(id: Optional[str] = '', strategy_name: str = '', short_description: Optional[str] = '', long_description: Optional[str] = None, strategy_id: Optional[str] = 'YioJhK5IqBULe8fPLMnXaAaC0$aC0$', mix_name: Optional[str] = '', main_exchange: Literal['NSE', 'NFO', 'BFO', 'BSE', 'MCX', 'CDS'] = 'NFO', main_segment: Literal['FUT', 'OPT', 'EQ'] = 'FUT', main_symbol: str = '', main_contract: Optional[Literal['NEAR', 'NEXT', 'FAR']] = 'NEAR', main_expiry: Optional[Literal['WEEKLY', 'MONTHLY']] = 'MONTHLY', product_type: Literal['MIS', 'NRML', 'CNC', 'MTF'] = 'MIS', exit_order_product_type: Optional[str] = '', qty_type: Literal['Qty', 'Lot'] = 'Lot', qty: int = 1, lot: Optional[int] = 1, atm: Optional[float] = 0, strike_price: Optional[float] = 0, option_type: Optional[Literal['CALL', 'PUT']] = 'CALL', intraday_entry_time: Optional[str] = '09:15', intraday_exit_time: Optional[str] = '15:15', is_intraday: bool = True, jobbing_side: Literal['BUY', 'SELL'] = 'BUY', jobbing_start_price: Optional[float] = 0, jobbing_end_price: Optional[float] = 0, average_by: Optional[Literal['Point', 'Percentage']] = 'Point', average_value: Optional[float] = 100, target_by: Optional[Literal['Point', 'Percentage']] = 'Point', target: Optional[float] = 100, intraday_target: Optional[float] = 0, maximum_steps: Optional[int] = 0, maximum_target_steps: Optional[int] = 0, sqroff_on_maximum_steps: Optional[bool] = False, calculate_qty_on_market_jump: Optional[bool] = False, allow_update_parameters: Optional[bool] = False, order_type: Literal['Market Order', 'Limit Order'] = 'Market Order', no_of_limit_order_retry: Optional[int] = 0, retry_at_every_seconds: Optional[int] = 0, market_order_after_retry: Optional[bool] = False, reset_cycle_by_master_tpsl: Optional[bool] = False, rollover_before_days: Optional[int] = 0, is_auto_rollover: Optional[bool] = False, is_add_hedge_leg: Optional[bool] = False, rollover_time: Optional[str] = '15:15', master_tp_money: Optional[float] = 0, master_sl_money: Optional[float] = 0, reset_cycle_on_positive_mtm: Optional[int] = 0, required_margin: Optional[float] = 1, is_trail_sl: Optional[bool] = False, profit_move: Optional[float] = 0, sl_move: Optional[float] = 0, no_of_trail_sl: Optional[int] = 0, scalping_opening_qty: Optional[int] = 0, increase_qty_on_avg: Optional[bool] = False, increase_qty: Optional[int] = 0, increase_qty_type: Optional[str] = None, rebacktest: Optional[bool] = False, sub: Optional[list] = [], effect_all_sub_strategies: Optional[bool] = False) -> str:
+    '''
+    scalping strategy creation tool
+    
+    Args:
+    id: Unique ID of the strategy
+    strategy_name: Name of the strategy
+    short_description: Short summary for UI
+    long_description: Detailed description
+    strategy_id: Internal strategy ID
+    mix_name: Name of the mix
+    main_exchange: Exchange for execution
+    main_segment: Trading segment
+    main_symbol: Trading symbol
+    main_contract: Contract selection
+    main_expiry: Expiry cycle
+    product_type: Broker product type
+    exit_order_product_type: Product type for exit orders
+    qty_type: Quantity calculation type
+    qty: Base quantity
+    lot: Lot size if applicable
+    atm: ATM value for options
+    strike_price: Strike price for option
+    option_type: Option type
+    intraday_entry_time: Intraday entry time
+    intraday_exit_time: Intraday exit time
+    is_intraday: Whether the strategy is intraday
+    jobbing_side: Jobbing direction
+    jobbing_start_price: Price to start jobbing
+    jobbing_end_price: Price to stop averaging
+    average_by: Averaging method
+    average_value: Distance between averaging steps
+    target_by: Target calculation method
+    target: Per-step target
+    intraday_target: Target for intraday
+    maximum_steps: Maximum averaging steps
+    maximum_target_steps: Max positive-side steps
+    sqroff_on_maximum_steps: Square off on max steps
+    calculate_qty_on_market_jump: Handle market jump
+    allow_update_parameters: Allow updating parameters
+    order_type: Order execution type
+    no_of_limit_order_retry: Number of retry attempts for limit orders
+    retry_at_every_seconds: Retry interval in seconds
+    market_order_after_retry: Use market order after retry
+    reset_cycle_by_master_tpsl: Reset cycle on master TP/SL
+    rollover_before_days: Days before expiry to rollover
+    is_auto_rollover: Enable auto rollover
+    is_add_hedge_leg: Add hedge leg
+    rollover_time: Rollover execution time
+    master_tp_money: Master TP money
+    master_sl_money: Master SL money
+    reset_cycle_on_positive_mtm: Reset cycle after positive MTM
+    required_margin: Estimated margin required
+    is_trail_sl: Enable trailing SL
+    profit_move: Profit move for trailing SL
+    sl_move: SL move for trailing SL
+    no_of_trail_sl: Number of trailing SL
+    scalping_opening_qty: Opening quantity for scalping
+    increase_qty_on_avg: Increase quantity on averaging
+    increase_qty: Quantity increment
+    increase_qty_type: Type of quantity increment
+    rebacktest: Re-run backtest
+    sub: Sub-strategies array
+    effect_all_sub_strategies: Apply to all sub-strategies
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = "https://api.marketmaya.com/api/mainStrategy/createScalpingStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing create_scalping_strategy: {response.text}"
+    except Exception as e:
+        return f"Error executing create_scalping_strategy: {str(e)}"
+
+
+# ================= get_strategies_list =================
+
+@mcp.tool(name="get_strategies_list", description="Fetch strategies/plugins with filters, pagination, and sorting")
+def get_strategies_list(skip: Optional[int] = 0, take: Optional[int] = 10, search: Optional[str] = '', symbols: Optional[list] = [], tradingType: Optional[Literal['All', 'Intraday', 'Positional']] = 'All', strategyMasterIds: Optional[list] = [], strategyMaster: Optional[dict] = {'id': '', 'strategy_name': 'All Plugins', 'selected': True}, AuthorIds: Optional[list] = [], sortBy: Optional[Literal['newest', 'oldest', 'popular']] = 'newest') -> str:
+    '''
+    Fetch strategies/plugins with filters, pagination, and sorting
+    
+    Args:
+    skip: Number of records to skip (pagination)
+    take: Number of records to fetch
+    search: Search keyword
+    symbols: Filter by trading symbols
+    tradingType: Trading type filter
+    strategyMasterIds: Selected strategy master IDs
+    strategyMaster: Strategy master filter object
+    AuthorIds: Filter by author IDs
+    sortBy: Sorting order
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/V3/mainStrategy/getClientMyStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_strategies_list: {response.text}"
+    except Exception as e:
+        return f"Error executing get_strategies_list: {str(e)}"
+
+
+# ================= get_point_balance =================
+
+@mcp.tool(name="get_point_balance", description="Fetch client point balance")
+def get_point_balance() -> str:
+    '''
+    Fetch client point balance
+    
+    Args:
+
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/client/v2/getPointBalance"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_point_balance: {response.text}"
+    except Exception as e:
+        return f"Error executing get_point_balance: {str(e)}"
+
+
+# ================= create_scalping_strategy =================
+
+@mcp.tool(name="create_scalping_strategy", description="scalping strategy creation tool")
+def create_scalping_strategy(id: Optional[str] = '', strategy_name: str = '', short_description: Optional[str] = '', long_description: Optional[str] = None, strategy_id: Optional[str] = 'YioJhK5IqBULe8fPLMnXaAaC0$aC0$', mix_name: Optional[str] = '', main_exchange: Literal['NSE', 'NFO', 'BFO', 'BSE', 'MCX', 'CDS'] = 'NFO', main_segment: Literal['FUT', 'OPT', 'EQ'] = 'FUT', main_symbol: str = '', main_contract: Optional[Literal['NEAR', 'NEXT', 'FAR']] = 'NEAR', main_expiry: Optional[Literal['WEEKLY', 'MONTHLY']] = 'MONTHLY', product_type: Literal['MIS', 'NRML', 'CNC', 'MTF'] = 'MIS', exit_order_product_type: Optional[str] = '', qty_type: Literal['Qty', 'Lot'] = 'Lot', qty: int = 1, lot: Optional[int] = 1, atm: Optional[float] = 0, strike_price: Optional[float] = 0, option_type: Optional[Literal['CALL', 'PUT']] = 'CALL', intraday_entry_time: Optional[str] = '09:15', intraday_exit_time: Optional[str] = '15:15', is_intraday: bool = True, jobbing_side: Literal['BUY', 'SELL'] = 'BUY', jobbing_start_price: Optional[float] = 0, jobbing_end_price: Optional[float] = 0, average_by: Optional[Literal['Point', 'Percentage']] = 'Point', average_value: Optional[float] = 100, target_by: Optional[Literal['Point', 'Percentage']] = 'Point', target: Optional[float] = 100, intraday_target: Optional[float] = 0, maximum_steps: Optional[int] = 0, maximum_target_steps: Optional[int] = 0, sqroff_on_maximum_steps: Optional[bool] = False, calculate_qty_on_market_jump: Optional[bool] = False, allow_update_parameters: Optional[bool] = False, order_type: Literal['Market Order', 'Limit Order'] = 'Market Order', no_of_limit_order_retry: Optional[int] = 0, retry_at_every_seconds: Optional[int] = 0, market_order_after_retry: Optional[bool] = False, reset_cycle_by_master_tpsl: Optional[bool] = False, rollover_before_days: Optional[int] = 0, is_auto_rollover: Optional[bool] = False, is_add_hedge_leg: Optional[bool] = False, rollover_time: Optional[str] = '15:15', master_tp_money: Optional[float] = 0, master_sl_money: Optional[float] = 0, reset_cycle_on_positive_mtm: Optional[int] = 0, required_margin: Optional[float] = 1, is_trail_sl: Optional[bool] = False, profit_move: Optional[float] = 0, sl_move: Optional[float] = 0, no_of_trail_sl: Optional[int] = 0, scalping_opening_qty: Optional[int] = 0, increase_qty_on_avg: Optional[bool] = False, increase_qty: Optional[int] = 0, increase_qty_type: Optional[str] = None, rebacktest: Optional[bool] = False, sub: Optional[list] = [], effect_all_sub_strategies: Optional[bool] = False) -> str:
+    '''
+    scalping strategy creation tool
+    
+    Args:
+    id: Unique ID of the strategy
+    strategy_name: Name of the strategy
+    short_description: Short summary for UI
+    long_description: Detailed description
+    strategy_id: Internal strategy ID
+    mix_name: Name of the mix
+    main_exchange: Exchange for execution
+    main_segment: Trading segment
+    main_symbol: Trading symbol
+    main_contract: Contract selection
+    main_expiry: Expiry cycle
+    product_type: Broker product type
+    exit_order_product_type: Product type for exit orders
+    qty_type: Quantity calculation type
+    qty: Base quantity
+    lot: Lot size if applicable
+    atm: ATM value for options
+    strike_price: Strike price for option
+    option_type: Option type
+    intraday_entry_time: Intraday entry time
+    intraday_exit_time: Intraday exit time
+    is_intraday: Whether the strategy is intraday
+    jobbing_side: Jobbing direction
+    jobbing_start_price: Price to start jobbing
+    jobbing_end_price: Price to stop averaging
+    average_by: Averaging method
+    average_value: Distance between averaging steps
+    target_by: Target calculation method
+    target: Per-step target
+    intraday_target: Target for intraday
+    maximum_steps: Maximum averaging steps
+    maximum_target_steps: Max positive-side steps
+    sqroff_on_maximum_steps: Square off on max steps
+    calculate_qty_on_market_jump: Handle market jump
+    allow_update_parameters: Allow updating parameters
+    order_type: Order execution type
+    no_of_limit_order_retry: Number of retry attempts for limit orders
+    retry_at_every_seconds: Retry interval in seconds
+    market_order_after_retry: Use market order after retry
+    reset_cycle_by_master_tpsl: Reset cycle on master TP/SL
+    rollover_before_days: Days before expiry to rollover
+    is_auto_rollover: Enable auto rollover
+    is_add_hedge_leg: Add hedge leg
+    rollover_time: Rollover execution time
+    master_tp_money: Master TP money
+    master_sl_money: Master SL money
+    reset_cycle_on_positive_mtm: Reset cycle after positive MTM
+    required_margin: Estimated margin required
+    is_trail_sl: Enable trailing SL
+    profit_move: Profit move for trailing SL
+    sl_move: SL move for trailing SL
+    no_of_trail_sl: Number of trailing SL
+    scalping_opening_qty: Opening quantity for scalping
+    increase_qty_on_avg: Increase quantity on averaging
+    increase_qty: Quantity increment
+    increase_qty_type: Type of quantity increment
+    rebacktest: Re-run backtest
+    sub: Sub-strategies array
+    effect_all_sub_strategies: Apply to all sub-strategies
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = "https://api.marketmaya.com/api/mainStrategy/createScalpingStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing create_scalping_strategy: {response.text}"
+    except Exception as e:
+        return f"Error executing create_scalping_strategy: {str(e)}"
+
+
+# ================= get_strategies_list =================
+
+@mcp.tool(name="get_strategies_list", description="Fetch strategies/plugins with filters, pagination, and sorting")
+def get_strategies_list(skip: Optional[int] = 0, take: Optional[int] = 10, search: Optional[str] = '', symbols: Optional[list] = [], tradingType: Optional[Literal['All', 'Intraday', 'Positional']] = 'All', strategyMasterIds: Optional[list] = [], strategyMaster: Optional[dict] = {'id': '', 'strategy_name': 'All Plugins', 'selected': True}, AuthorIds: Optional[list] = [], sortBy: Optional[Literal['newest', 'oldest', 'popular']] = 'newest') -> str:
+    '''
+    Fetch strategies/plugins with filters, pagination, and sorting
+    
+    Args:
+    skip: Number of records to skip (pagination)
+    take: Number of records to fetch
+    search: Search keyword
+    symbols: Filter by trading symbols
+    tradingType: Trading type filter
+    strategyMasterIds: Selected strategy master IDs
+    strategyMaster: Strategy master filter object
+    AuthorIds: Filter by author IDs
+    sortBy: Sorting order
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/V3/mainStrategy/getClientMyStrategy"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_strategies_list: {response.text}"
+    except Exception as e:
+        return f"Error executing get_strategies_list: {str(e)}"
+
+
+# ================= get_point_balance =================
+
+@mcp.tool(name="get_point_balance", description="Fetch client point balance")
+def get_point_balance() -> str:
+    '''
+    Fetch client point balance
+    
+    Args:
+
+    '''
+    import httpx
+    import json
+    
+    # Construct URL
+    endpoint = " https://api.marketmaya.com/api/client/v2/getPointBalance"
+    if not endpoint.startswith("http"):
+        base = "https://api.marketmaya.com/api"
+        # Ensure base doesn't end with / and endpoint doesn't start with /
+        if base.endswith("/"): base = base[:-1]
+        if endpoint.startswith("/"): endpoint = endpoint[1:]
+        url = f"{base}/{endpoint}"
+    else:
+        url = endpoint
+        
+    # Prepare params
+    params = locals().copy()
+    # Remove internal vars
+    params.pop("httpx", None)
+    params.pop("json", None)
+    
+    headers = {
+        "Authorization": "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiI5OCIsImdpdmVuX25hbWUiOiJXTCIsImNlcnRzZXJpYWxudW1iZXIiOiIxMTQuMzEuMTg5LjEwNCIsInVuaXF1ZV9uYW1lIjoiQWkgVGVhbSIsImFjdG9ydCI6ImZhbHNlIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbG9jYWxpdHkiOiIxIiwibmJmIjoxNzY1OTM4NDYwLCJleHAiOjE3NjU5OTYxOTksImlhdCI6MTc2NTkzODQ2MH0.DTo3ldiOyebO-llVg5jn3nsVFvot9p63pq9FHyFKc4Bamik-3CbQKRiJoYnW5s-8SeS8kYhIAfkIJy3eqRBvxw",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        with httpx.Client() as client:
+            if "POST".upper() == "GET":
+                response = client.get(url, params=params, headers=headers)
+            else:
+                response = client.post(url, json=params, headers=headers)
+            
+            # Check if response is empty
+            if not response.content:
+                return "Error: Empty response from API"
+                
+            try:
+                return json.dumps(response.json())
+            except json.JSONDecodeError:
+                return f"Error executing get_point_balance: {response.text}"
+    except Exception as e:
+        return f"Error executing get_point_balance: {str(e)}"

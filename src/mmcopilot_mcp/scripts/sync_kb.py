@@ -12,10 +12,16 @@ from pathlib import Path
 load_dotenv()
 
 # Configuration
-API_URL = "https://webapi.marketmaya.com/api/AiDocumentMaster/GetAIDocList"
-FETCH_TOKEN = os.getenv("FETCH_BEARER_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-STORE_CONFIG_FILE = "store_config.json"
+# If run as script, we might need to adjust paths or imports
+if __name__ == "__main__":
+    # Add src to path if running directly
+    import sys
+    sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+    from mmcopilot_mcp.config import FETCH_BEARER_TOKEN, GEMINI_API_KEY, STORE_CONFIG_FILE, WEBAPI_BASE_URL
+else:
+    from ..config import FETCH_BEARER_TOKEN, GEMINI_API_KEY, STORE_CONFIG_FILE, WEBAPI_BASE_URL
+
+API_URL = f"{WEBAPI_BASE_URL}/AiDocumentMaster/GetAIDocList"
 
 def fetch_documents_from_api():
     """Fetch documents from MarketMaya API"""
@@ -32,7 +38,7 @@ def fetch_documents_from_api():
     }
     
     headers = {
-        "Authorization": f"Bearer {FETCH_TOKEN}",
+        "Authorization": f"Bearer {FETCH_BEARER_TOKEN}",
         "Content-Type": "application/json"
     }
     
