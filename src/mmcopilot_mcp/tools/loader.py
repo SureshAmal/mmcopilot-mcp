@@ -105,6 +105,8 @@ def fetch_and_register_tools(mcp: FastMCP, api_base_url: str, bearer_token: str)
                     tool_name = tool_def.get("apiName")
                     description = tool_def.get("apiDescription")
                     api_endpoint = tool_def.get("apiEndpoint") or tool_def.get("endPointUrl")
+                    if api_endpoint:
+                        api_endpoint = api_endpoint.strip()
                     method = tool_def.get("apiMethod") or tool_def.get("apiType") or "GET"
                     params = []
 
@@ -171,6 +173,7 @@ def {tool_name}({sig_str}) -> str:
     '''
     import httpx
     import json
+    import os
     
     # Construct URL
     endpoint = "{api_endpoint}"
@@ -188,9 +191,10 @@ def {tool_name}({sig_str}) -> str:
     # Remove internal vars
     params.pop("httpx", None)
     params.pop("json", None)
+    params.pop("os", None)
     
     headers = {{
-        "Authorization": "Bearer {bearer_token}",
+        "Authorization": f"Bearer {{os.getenv('BEARER_TOKEN')}}",
         "Content-Type": "application/json"
     }}
     
