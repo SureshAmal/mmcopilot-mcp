@@ -17,8 +17,10 @@ def get_python_type(param_def):
     p_type = param_def.get("type")
     is_required = param_def.get("required", False)
     
-    py_type = "str"
-    if p_type == "integer":
+    py_type = "Any"
+    if p_type == "string":
+        py_type = "str"
+    elif p_type == "integer":
         py_type = "int"
     elif p_type == "number":
         py_type = "float"
@@ -26,6 +28,8 @@ def get_python_type(param_def):
         py_type = "bool"
     elif p_type == "array":
         py_type = "list"
+    elif p_type == "object":
+        py_type = "dict"
     
     # Handle Enums
     if "enum" in param_def and param_def["enum"]:
@@ -118,6 +122,12 @@ def register_single_tool(mcp: FastMCP, tool_item: dict, bearer_token: str):
     description = tool_def.get("description", "")
     inputs = tool_def.get("inputs", [])
     endpoint_url = tool_item.get("endPointUrl")
+    
+    if endpoint_url:
+        endpoint_url = endpoint_url.strip()
+        
+    log_stderr(f"Registering {tool_name} with endpoint: {endpoint_url}")
+
     method = tool_item.get("apiType", "POST")
 
     if not tool_name or not endpoint_url:
@@ -152,6 +162,7 @@ def {tool_name}({sig_str}):
     import httpx
     import json
     import os
+    import sys
     
     url = "{endpoint_url}"
     method = "{method}"
@@ -166,11 +177,14 @@ def {tool_name}({sig_str}):
         if arg in local_vars:
             val = local_vars[arg]
             # Filter out None values to avoid sending nulls for optional fields
-            if val is not None:             
+            if val is not None:
+                # Specific fix for MarketMaya API: Don't send empty ID fields
+                if arg in ["id", "strategy_id"] and val == "":
+                    continue
                 payload[arg] = val
             
     # Log the payload for debugging
-    print(f"[Tool: {tool_name}] Payload: {{json.dumps(payload, indent=2)}}")
+    sys.stderr.write(f"[Tool: {tool_name}] Payload: {{json.dumps(payload, indent=2)}}\\n")
 
     headers = {{
         "Authorization": f"Bearer {{token}}",
@@ -207,13 +221,14 @@ def {tool_name}({sig_str}):
         "Any": Any,
         "httpx": httpx,
         "json": json,
-        "mcp": mcp
+        "mcp": mcp,
+        "dict": dict
     }
     
     # Debug: Print generated code
-    print(f"\n--- Generated Code for {tool_name} ---")
-    print(func_code)
-    print("--------------------------------------\n")
+    sys.stderr.write(f"\n--- Generated Code for {tool_name} ---\n")
+    sys.stderr.write(func_code + "\n")
+    sys.stderr.write("--------------------------------------\n")
 
     exec(func_code, global_scope, local_scope)
     
