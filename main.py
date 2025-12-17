@@ -446,13 +446,26 @@ def search_knowledge_base(query: str) -> str:
         Relevant text chunks from the knowledge base.
     """
     api_key = os.getenv("GEMINI_API_KEY")
+    
+    # Try to load store name from config file first, then env var
     store_name = os.getenv("MMCOPILOT_STORE_NAME")
+    config_path = os.path.join(os.path.dirname(__file__), "store_config.json")
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                if config.get("store_name"):
+                    store_name = config.get("store_name")
+                    logger.info(f"Loaded store name from config: {store_name}")
+        except Exception as e:
+            logger.error(f"Failed to load store config: {e}")
 
     if not api_key:
         return "Error: GEMINI_API_KEY not configured in MCP server."
 
     if not store_name:
-        return "Error: Knowledge base not configured (MMCOPILOT_STORE_NAME missing)."
+        return "Error: Knowledge base not configured (MMCOPILOT_STORE_NAME missing and no store_config.json found)."
 
     try:
         client = genai.Client(api_key=api_key, vertexai=False)
@@ -471,6 +484,7 @@ def search_knowledge_base(query: str) -> str:
             config=types.GenerateContentConfig(
                 tools=[file_search_tool],
                 temperature=0.1,
+                system_instruction="You retrive information from the knowledge base to help the user. Provide detailed and helpful answers based on the documents you find. and if not found say no relevant information found.",
             ),
         )
 
