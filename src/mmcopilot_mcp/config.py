@@ -1,7 +1,17 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root (3 levels up from this file)
+env_path = Path(__file__).parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# Debug: Print env path and status
+import sys
+print(f"🔍 Loading .env from: {env_path}", file=sys.stderr)
+print(f"🔍 .env exists: {env_path.exists()}", file=sys.stderr)
+if env_path.exists():
+    print(f"🔍 .env size: {env_path.stat().st_size} bytes", file=sys.stderr)
 
 # API Configuration
 API_BASE_URL = "https://api.marketmaya.com/api"

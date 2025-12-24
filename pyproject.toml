@@ -1,20 +1,39 @@
 [project]
-name = "mmcopilot_mcp"
-version = "0.1.0"
-description = "Add your description here"
+name = "mmcopilot-mcp"
+version = "0.2.0"
+description = "MCP server for MarketMaya trading platform with dynamic tool loading"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
+authors = [
+    { name = "MMCopilot Team" }
+]
+keywords = ["mcp", "trading", "marketmaya", "copilot"]
 dependencies = [
   "dotenv>=0.9.9",
   "fastmcp>=2.13.2",
   "google>=3.0.0",
   "google-genai>=1.53.0",
   "httpx>=0.28.1",
-  "mm-strategy-create",
   "pydantic>=2.12.5",
   "python-dotenv>=1.2.1",
-  "typing>=3.10.0.0",
 ]
 
-[tool.uv.sources]
-mm-strategy-create = { git = "https://github.com/SureshAmal/CreateStrategyOpenAPI" }
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0.0",
+  "mypy>=1.0.0",
+  "ruff>=0.1.0",
+]
+
+[project.scripts]
+mmcp = "mmcopilot_mcp.__main__:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
